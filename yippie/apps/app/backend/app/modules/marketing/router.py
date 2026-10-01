@@ -154,14 +154,22 @@ async def launch_campaign(
             detail="Campaign has already been launched.",
         )
     body = body or CampaignLaunchRequest()
-    result = await service.launch_campaign(
+    # Queue for background dispatch so the request returns immediately instead of
+    # blocking on hundreds of rate-limited Resend calls. The marketing scheduler
+    # sends it (with pacing) within ~1 minute.
+    recipients = await service.queue_campaign_launch(
         db,
         campaign,
         segment_override=body.segment_filter,
         enable_ab=body.enable_ab,
     )
     await db.commit()
-    return result
+    return LaunchResultOut(
+        campaign_id=campaign.id,
+        status=campaign.status,
+        recipients=recipients,
+        skipped_unsubscribed=0,
+    )
 
 
 @router.post("/campaigns/{campaign_id}/schedule", response_model=CampaignOut)

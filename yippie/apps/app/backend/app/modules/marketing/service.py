@@ -12,6 +12,8 @@ import logging
 import random
 import re
 import uuid
+
+import httpx
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -468,7 +470,9 @@ async def _update_engagement_score(
 # --------------------------------------------------------------------------- #
 
 # Ordered so a later event never demotes an earlier one (a click implies an open).
-_STATUS_RANK = {"sent": 0, "opened": 1, "clicked": 2, "replied": 3}
+# "failed" ranks below "sent" so it is never counted as opened/clicked/replied,
+# and so direct _STATUS_RANK[...] lookups never KeyError on a failed row.
+_STATUS_RANK = {"failed": -1, "sent": 0, "opened": 1, "clicked": 2, "replied": 3}
 
 
 async def _row_by_token(
@@ -587,7 +591,8 @@ async def get_campaign_analytics(
     )
     rows = list(result.scalars().all())
 
-    sent = len(rows)
+    sent = sum(1 for r in rows if r.status != "failed")
+    failed = sum(1 for r in rows if r.status == "failed")
     opened = sum(1 for r in rows if _STATUS_RANK[r.status] >= _STATUS_RANK["opened"])
     clicked = sum(1 for r in rows if _STATUS_RANK[r.status] >= _STATUS_RANK["clicked"])
     replied = sum(1 for r in rows if r.status == "replied")
@@ -611,7 +616,7 @@ async def get_campaign_analytics(
             variants.append(
                 {
                     "variant": v,
-                    "sent": len(vr),
+                    "sent": sum(1 for r in vr if r.status != "failed"),
                     "opened": sum(
                         1 for r in vr if _STATUS_RANK[r.status] >= _STATUS_RANK["opened"]
                     ),
@@ -625,6 +630,7 @@ async def get_campaign_analytics(
     campaign = await get_campaign(db, tenant_id, campaign_id)
     return {
         "sent": sent,
+        "failed": failed,
         "opened": opened,
         "clicked": clicked,
         "replied": replied,
@@ -756,7 +762,7 @@ async def get_marketing_stats(
         )
     )
     rows = list(analytics_result.scalars().all())
-    total_sent = len(rows)
+    total_sent = sum(1 for r in rows if r.status != "failed")
     total_opened = sum(1 for r in rows if _STATUS_RANK.get(r.status, 0) >= _STATUS_RANK["opened"])
     total_replied = sum(1 for r in rows if r.status == "replied")
 
@@ -996,6 +1002,44 @@ async def test_send_campaign(
     return {"to": agent_email, "campaign_id": str(campaign.id)}
 
 
+async def queue_campaign_launch(
+    db: AsyncSession,
+    campaign: Campaign,
+    *,
+    segment_override: Optional[SegmentFilter] = None,
+    enable_ab: bool = True,
+) -> int:
+    """Mark a campaign for immediate background dispatch.
+
+    The marketing scheduler (``send_scheduled_campaigns``, runs every minute)
+    picks up ``scheduled`` campaigns whose ``scheduled_at`` has passed and runs
+    ``launch_campaign`` off the request, with rate-limit-safe pacing. Doing the
+    send in a request would block on hundreds of Resend calls and trip the
+    gateway timeout (the "stuck on Versturen…" symptom).
+
+    Returns the approximate recipient count (segment contacts with a valid
+    email) for immediate UI feedback; the scheduler re-resolves recipients live
+    at send time, so unsubscribes/bounces are applied then.
+    """
+    from app.core.mailer import is_valid_email
+
+    spec = segment_override or (
+        SegmentFilter(**campaign.segment_filter)
+        if campaign.segment_filter
+        else SegmentFilter(filter_by="all")
+    )
+    contacts = await get_segment_contacts(db, campaign.tenant_id, spec)
+    count = sum(1 for c in contacts if c.email and is_valid_email(c.email))
+
+    if segment_override is not None:
+        campaign.segment_filter = spec.model_dump(mode="json")
+    campaign.enable_ab = enable_ab
+    campaign.status = "scheduled"
+    campaign.scheduled_at = datetime.now(timezone.utc)
+    await db.flush()
+    return count
+
+
 async def launch_campaign(
     db: AsyncSession,
     campaign: Campaign,
@@ -1061,7 +1105,7 @@ async def launch_campaign(
     from app.core.models import Tenant
     tenant = await db.get(Tenant, tenant_id)
 
-    payloads: list[tuple[Contact, str, str, str]] = []  # (contact, html, to_email, unsub_url)
+    payloads: list[tuple[Contact, str, str, str, CampaignAnalytics]] = []  # (contact, html, to_email, unsub_url, analytics_row)
     for idx, contact in enumerate(dispatch_set):
         token = uuid.uuid4()
         variant: Optional[str] = None
@@ -1128,26 +1172,25 @@ async def launch_campaign(
         full_html += _open_pixel(base_url, token)
         full_html += _unsubscribe_footer(base_url, token)
 
-        db.add(
-            CampaignAnalytics(
-                tenant_id=tenant_id,
-                campaign_id=campaign.id,
-                recipient_email=contact.email,
-                status="sent",
-                tracking_token=token,
-                variant=variant,
-            )
+        analytics_row = CampaignAnalytics(
+            tenant_id=tenant_id,
+            campaign_id=campaign.id,
+            recipient_email=contact.email,
+            status="sent",
+            tracking_token=token,
+            variant=variant,
         )
-        payloads.append((contact, full_html, contact.email, unsub_url))
+        db.add(analytics_row)
+        payloads.append((contact, full_html, contact.email, unsub_url, analytics_row))
 
     await db.flush()
 
     # Actual sending happens after the DB rows exist so a delivery failure
-    # never loses the analytics row. Failures are logged, not fatal.
+    # never loses the analytics row. Failures flip the row to "failed".
     if campaign.dispatch_channel == "whatsapp":
         await _dispatch_whatsapp(db, campaign, payloads)
     else:
-        await _dispatch_email(campaign, payloads, sender_email)
+        await _dispatch_email(db, campaign, payloads, sender_email)
 
     # If no A/B hold-back, the whole list is out → completed.
     if not has_ab:
@@ -1162,20 +1205,52 @@ async def launch_campaign(
     }
 
 
-async def _dispatch_email(
-    campaign: Campaign,
-    payloads: list[tuple[Contact, str, str, str]],
-    sender_email: Optional[str],
-) -> None:
+# Resend's default limit is ~2 requests/second; pace sends to stay under it so a
+# bulk blast does not get rejected with 429 Too Many Requests.
+_SEND_INTERVAL_SECONDS = 0.6
+_MAX_SEND_RETRIES = 4
+
+
+async def _send_with_rate_limit_retry(**kwargs) -> None:
+    """send_email with bounded exponential backoff on Resend 429 (rate limit).
+
+    Honours a numeric Retry-After header when present. Any non-429 error, or a
+    429 past the retry budget, propagates to the caller.
+    """
     from app.core.mailer import send_email
 
-    for _contact, html, to_email, unsub_url in payloads:
+    delay = 1.0
+    for attempt in range(_MAX_SEND_RETRIES):
         try:
-            plain = re.sub(r"<[^>]+>", " ", html).strip() or campaign.subject
-            subject = _apply_personalization(
-                campaign.subject or campaign.name, _contact, escape=False
-            )
-            await send_email(
+            await send_email(**kwargs)
+            return
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code != 429 or attempt == _MAX_SEND_RETRIES - 1:
+                raise
+            wait = delay
+            retry_after = exc.response.headers.get("Retry-After")
+            if retry_after:
+                try:
+                    wait = max(wait, float(retry_after))
+                except ValueError:
+                    pass
+            await asyncio.sleep(wait)
+            delay *= 2
+
+
+async def _dispatch_email(
+    db: AsyncSession,
+    campaign: Campaign,
+    payloads: list[tuple[Contact, str, str, str, CampaignAnalytics]],
+    sender_email: Optional[str],
+) -> None:
+    for _contact, html, to_email, unsub_url, analytics_row in payloads:
+        plain = re.sub(r"<[^>]+>", " ", html).strip() or campaign.subject
+        subject = _apply_personalization(
+            campaign.subject or campaign.name, _contact, escape=False
+        )
+        try:
+            await _send_with_rate_limit_retry(
                 to=to_email,
                 subject=subject,
                 body=plain,
@@ -1188,10 +1263,14 @@ async def _dispatch_email(
             )
         except Exception:
             log.exception("Campaign %s: failed to send to %s", campaign.id, to_email)
+            analytics_row.status = "failed"
+        # Pace between sends to respect Resend's rate limit.
+        await asyncio.sleep(_SEND_INTERVAL_SECONDS)
+    await db.flush()
 
 
 async def _dispatch_whatsapp(
-    db: AsyncSession, campaign: Campaign, payloads: list[tuple[Contact, str, str, str]]
+    db: AsyncSession, campaign: Campaign, payloads: list[tuple[Contact, str, str, str, CampaignAnalytics]]
 ) -> None:
     """Send the campaign body (HTML stripped to plain text) as a WhatsApp text
     with a 5-10s random delay per recipient (anti-ban). Instance name is the tenant slug."""
@@ -1202,7 +1281,7 @@ async def _dispatch_whatsapp(
     if tenant is None:
         return
     instance = tenant.slug
-    for contact, html, _to_email, _unsub_url in payloads:
+    for contact, html, _to_email, _unsub_url, analytics_row in payloads:
         if not contact.phone:
             continue
         try:
@@ -1211,7 +1290,9 @@ async def _dispatch_whatsapp(
             await whatsapp_service.send_text(instance, contact.phone, plain)
         except Exception:
             log.exception("Campaign %s: WhatsApp send failed for %s", campaign.id, contact.phone)
+            analytics_row.status = "failed"
         await asyncio.sleep(random.uniform(5, 10))
+    await db.flush()
 
 
 # --------------------------------------------------------------------------- #
@@ -1232,7 +1313,7 @@ async def ab_pick_winner(
     rows = list(result.scalars().all())
 
     def _open_rate(variant: str) -> float:
-        vr = [r for r in rows if r.variant == variant]
+        vr = [r for r in rows if r.variant == variant and r.status != "failed"]
         if not vr:
             return 0.0
         opened = sum(
@@ -1272,7 +1353,7 @@ async def ab_pick_winner(
     from app.core.models import Tenant
     tenant = await db.get(Tenant, campaign.tenant_id)
 
-    payloads: list[tuple[Contact, str, str, str]] = []
+    payloads: list[tuple[Contact, str, str, str, CampaignAnalytics]] = []
     for contact in remaining:
         token = uuid.uuid4()
         personalized = _apply_personalization(win_html, contact)
@@ -1286,21 +1367,20 @@ async def ab_pick_winner(
         unsub_url = f"{base_url}/api/v1/track/unsubscribe/{token}"
         full_html += _open_pixel(base_url, token)
         full_html += _unsubscribe_footer(base_url, token)
-        db.add(
-            CampaignAnalytics(
-                tenant_id=campaign.tenant_id,
-                campaign_id=campaign.id,
-                recipient_email=contact.email,
-                status="sent",
-                tracking_token=token,
-                variant=winner,
-            )
+        analytics_row = CampaignAnalytics(
+            tenant_id=campaign.tenant_id,
+            campaign_id=campaign.id,
+            recipient_email=contact.email,
+            status="sent",
+            tracking_token=token,
+            variant=winner,
         )
-        payloads.append((contact, full_html, contact.email, unsub_url))
+        db.add(analytics_row)
+        payloads.append((contact, full_html, contact.email, unsub_url, analytics_row))
 
     await db.flush()
     if payloads:
-        await _dispatch_email(campaign, payloads, None)
+        await _dispatch_email(db, campaign, payloads, None)
 
     campaign.status = "completed"
     await db.flush()

@@ -6,15 +6,23 @@ main.py alongside the other public routers (prefix /api/v1).
 Supported action types:
 - 'label': apply label_id to the contact
 - 'pipeline_stage': move contact to stage_id in the pipeline
+
+Scanner guard: corporate mail security gateways (SafeLinks, Mimecast,
+Proofpoint, …) pre-fetch every URL in an email to scan it. A plain GET that
+mutates would let those bots burn tokens, inflate click counts and — worst of
+all — auto-move contacts through the pipeline. So GET is non-mutating: it only
+renders a confirmation page. The action is applied on POST, which a human
+triggers by clicking the button on that page and a link scanner does not.
 """
 from __future__ import annotations
 
+import html as _html
 import uuid
 from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,13 +34,81 @@ router = APIRouter(prefix="/track", tags=["tracking"])
 
 DB = Annotated[AsyncSession, Depends(get_db)]
 
+_BRAND = "#5BB8E8"
 
-@router.get("/click/{token}")
-async def track_click(token: uuid.UUID, db: DB):
-    """Apply the configured action to the contact, burn the token, redirect to confirm page."""
+
+def _page(title: str, body_html: str) -> str:
+    return (
+        "<!DOCTYPE html><html lang='nl'><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+        f"<title>{_html.escape(title)}</title></head>"
+        "<body style=\"margin:0;font-family:-apple-system,BlinkMacSystemFont,"
+        "'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;\">"
+        "<div style='max-width:480px;margin:80px auto;background:#fff;border-radius:12px;"
+        "border:1px solid #e5e7eb;padding:40px 32px;text-align:center;'>"
+        f"<div style='height:4px;background:{_BRAND};border-radius:2px;margin:-40px -32px 28px;'></div>"
+        f"{body_html}"
+        "</div></body></html>"
+    )
+
+
+def _confirm_page(confirm_url: str) -> str:
+    # The action only happens when this form is POSTed — a human pressing the
+    # button. Link scanners issue a GET and stop here, so they never trigger it.
+    body = (
+        "<h2 style='color:#1f2937;margin:0 0 10px;font-size:20px;'>Bevestig je keuze</h2>"
+        "<p style='color:#6b7280;font-size:15px;line-height:1.5;margin:0 0 24px;'>"
+        "Klik op de knop hieronder om je keuze te bevestigen.</p>"
+        f"<form method='post' action='{_html.escape(confirm_url)}'>"
+        "<button type='submit' style=\"display:inline-block;border:0;cursor:pointer;"
+        f"background:{_BRAND};color:#fff;font-size:15px;font-weight:600;"
+        "padding:12px 28px;border-radius:8px;\">Bevestigen</button>"
+        "</form>"
+    )
+    return _page("Bevestig je keuze", body)
+
+
+def _done_page(message: str) -> str:
+    body = (
+        "<h2 style='color:#1f2937;margin:0 0 10px;font-size:20px;'>Bedankt</h2>"
+        f"<p style='color:#6b7280;font-size:15px;line-height:1.5;margin:0;'>{_html.escape(message)}</p>"
+    )
+    return _page("Bedankt", body)
+
+
+def _safe_dest(row: LabelClickToken) -> str:
+    """Relative path or same-origin URL only — never an attacker-controlled host."""
+    dest = row.redirect_url or "/track/confirm"
+    if dest.startswith("http"):
+        from app.config import get_settings as _get_settings
+        base = _get_settings().app_base_url.rstrip("/")
+        if not dest.startswith(base):
+            dest = "/track/confirm"
+    return dest
+
+
+@router.get("/click/{token}", response_class=HTMLResponse, include_in_schema=False)
+async def track_click_landing(token: uuid.UUID, db: DB):
+    """Non-mutating: render the confirmation page. No action is applied here so
+    that automated link scanners (which only GET) can't trigger the action."""
     row = await db.get(LabelClickToken, token)
-    if not row or row.used_at is not None:
+    if row is None:
+        return HTMLResponse(_done_page("Deze link is ongeldig of verlopen."), status_code=200)
+    if row.used_at is not None:
+        return HTMLResponse(_done_page("Je keuze is al bevestigd."), status_code=200)
+    return HTMLResponse(_confirm_page(f"/api/v1/track/click/{row.token}"), status_code=200)
+
+
+@router.post("/click/{token}", include_in_schema=False)
+async def track_click_confirm(token: uuid.UUID, db: DB):
+    """Apply the configured action to the contact, burn the token, redirect to
+    the confirm page. Only reached when a human submits the confirmation form."""
+    row = await db.get(LabelClickToken, token)
+    if row is None:
         return RedirectResponse("/track/confirm?expired=1", status_code=302)
+    if row.used_at is not None:
+        # Idempotent — already confirmed. Send them on to the destination.
+        return RedirectResponse(_safe_dest(row), status_code=302)
 
     row.used_at = datetime.now(timezone.utc)
 
@@ -79,11 +155,4 @@ async def track_click(token: uuid.UUID, db: DB):
     )
 
     await db.commit()
-    dest = row.redirect_url or "/track/confirm"
-    # Reject redirects to external domains — only allow relative paths or same origin.
-    if dest.startswith("http"):
-        from app.config import get_settings as _get_settings
-        base = _get_settings().app_base_url.rstrip("/")
-        if not dest.startswith(base):
-            dest = "/track/confirm"
-    return RedirectResponse(dest, status_code=302)
+    return RedirectResponse(_safe_dest(row), status_code=302)

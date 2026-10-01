@@ -4,6 +4,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import AdminUser, CurrentUser
@@ -113,3 +114,53 @@ async def put_flowchart(body: FlowchartGraph, current_user: AdminUser, db: DB):
 @router.get("/flowchart/suggestions", response_model=list[FlowchartSuggestion])
 async def get_flowchart_suggestions(current_user: CurrentUser, db: DB):
     return await service.get_flowchart_suggestions(db, current_user.tenant_id)
+
+
+@router.get("/campaign_click_moves/{campaign_id}")
+async def campaign_click_moves(campaign_id: uuid.UUID, current_user: AdminUser, db: DB):
+    """Audit: contacts this campaign's tracked buttons moved into a pipeline
+    stage. Before the scanner guard, mail-security link prefetching could fire
+    these moves for contacts who never actually clicked — this surfaces every
+    affected contact so an operator can review and reset them manually (we have
+    no prior-stage history to auto-revert)."""
+    from app.modules.contacts.models import Contact
+    from app.modules.pipeline.models import PipelineStage
+    from app.modules.tracking.models import LabelClickToken
+
+    rows = await db.execute(
+        select(
+            LabelClickToken.contact_id,
+            Contact.full_name,
+            Contact.email,
+            LabelClickToken.button_id,
+            LabelClickToken.stage_id,
+            PipelineStage.name.label("stage_name"),
+            LabelClickToken.used_at,
+        )
+        .join(Contact, Contact.id == LabelClickToken.contact_id)
+        .outerjoin(PipelineStage, PipelineStage.id == LabelClickToken.stage_id)
+        .where(
+            LabelClickToken.tenant_id == current_user.tenant_id,
+            LabelClickToken.campaign_id == campaign_id,
+            LabelClickToken.used_at.isnot(None),
+            LabelClickToken.action_type == "pipeline_stage",
+        )
+        .order_by(LabelClickToken.used_at.desc())
+    )
+    result = rows.all()
+    return {
+        "campaign_id": str(campaign_id),
+        "total": len(result),
+        "contacts": [
+            {
+                "contact_id": str(r.contact_id),
+                "name": r.full_name,
+                "email": r.email,
+                "button_id": r.button_id,
+                "stage_id": str(r.stage_id) if r.stage_id else None,
+                "stage_name": r.stage_name,
+                "clicked_at": r.used_at.isoformat() if r.used_at else None,
+            }
+            for r in result
+        ],
+    }

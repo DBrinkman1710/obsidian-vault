@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 Status = Literal["draft", "scheduled", "sending", "completed"]
 Channel = Literal["email", "whatsapp"]
 Variant = Literal["a", "b"]
-AnalyticsStatus = Literal["sent", "opened", "clicked", "replied"]
+AnalyticsStatus = Literal["sent", "opened", "clicked", "replied", "failed"]
 FilterBy = Literal["label", "company", "pipeline_stage", "all"]
 
 
@@ -110,6 +110,7 @@ class VariantStats(BaseModel):
 
 class CampaignAnalyticsSummary(BaseModel):
     sent: int = 0
+    failed: int = 0
     opened: int = 0
     clicked: int = 0
     replied: int = 0

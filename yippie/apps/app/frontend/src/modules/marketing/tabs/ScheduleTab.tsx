@@ -8,11 +8,14 @@ import { useT } from '../../../hooks/useT'
 export function ScheduleTab({ campaign }: { campaign: Campaign }) {
   const t = useT()
   const qc = useQueryClient()
-  const [enableAb, setEnableAb] = useState(true)
+  const [enableAb, setEnableAb] = useState(false)
   const [channel, setChannel] = useState<Channel>(campaign.dispatch_channel)
   const [when, setWhen] = useState('')
 
-  const locked = campaign.status === 'sending' || campaign.status === 'completed'
+  const locked =
+    campaign.status === 'scheduled' ||
+    campaign.status === 'sending' ||
+    campaign.status === 'completed'
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['marketing', 'campaigns'] })
@@ -34,7 +37,7 @@ export function ScheduleTab({ campaign }: { campaign: Campaign }) {
     mutationFn: () => marketingApi.launch(campaign.id, { enable_ab: enableAb }),
     onSuccess: (r: any) => {
       const recipientLabel = r.recipients === 1 ? t('mkt_launched_recipients') : t('mkt_launched_recipients_pl')
-      toast.success(`Launched to ${r.recipients} ${recipientLabel}`)
+      toast.success(`${t('mkt_launch_queued')} (${r.recipients} ${recipientLabel})`)
       invalidate()
     },
     onError: () => toast.error(t('mkt_launch_err')),

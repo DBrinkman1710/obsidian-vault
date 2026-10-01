@@ -50,10 +50,19 @@ async def send_scheduled_campaigns():
                 Campaign.scheduled_at <= now,
             )
         )
-        campaigns = result.scalars().all()
+        campaigns = list(result.scalars().all())
+        if not campaigns:
+            return
+        # Claim the campaigns up front: flip to "sending" and commit before the
+        # (throttled, multi-minute) dispatch begins. The job lock expires after
+        # ~50s, so without this a later tick would re-select the same still-
+        # "scheduled" rows and double-send.
+        for campaign in campaigns:
+            campaign.status = "sending"
+        await db.commit()
         for campaign in campaigns:
             try:
-                await service.launch_campaign(db, campaign)
+                await service.launch_campaign(db, campaign, enable_ab=campaign.enable_ab)
                 await db.commit()
                 log.info("Launched scheduled campaign %s", campaign.id)
             except Exception:
