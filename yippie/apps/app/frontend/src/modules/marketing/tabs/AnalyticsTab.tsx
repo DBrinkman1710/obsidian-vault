@@ -126,31 +126,51 @@ export function AnalyticsTab({ campaign }: { campaign: Campaign }) {
           </section>
         )}
 
-        {clickMoves && clickMoves.total > 0 && (
+        {clickMoves && clickMoves.total_clickers > 0 && (
           <section className="overflow-hidden rounded-2xl border border-warning-200 bg-white">
             <div className="border-b border-warning-100 bg-warning-50 px-4 py-3">
-              <h3 className="text-sm font-semibold text-slate-900">
-                {t('mkt_click_moves_title')} · {clickMoves.total}
-              </h3>
+              <h3 className="text-sm font-semibold text-slate-900">{t('mkt_click_moves_title')}</h3>
               <p className="mt-0.5 text-xs text-warning-700">{t('mkt_click_moves_hint')}</p>
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+                <span>{clickMoves.total_clickers} {t('mkt_cm_clickers')}</span>
+                <span className="text-success-700">{clickMoves.moved_to_intended} {t('mkt_cm_moved')}</span>
+                <span className="text-warning-700">{clickMoves.not_moved} {t('mkt_cm_not_moved')}</span>
+                <span className="text-slate-500">{clickMoves.likely_bots_multi_button} {t('mkt_cm_bots')}</span>
+              </div>
             </div>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                   <th className="px-4 py-2.5">{t('mkt_col_contact')}</th>
-                  <th className="px-4 py-2.5">{t('mkt_col_email')}</th>
-                  <th className="px-4 py-2.5">{t('mkt_col_stage')}</th>
+                  <th className="px-4 py-2.5">{t('mkt_cm_intended')}</th>
+                  <th className="px-4 py-2.5">{t('mkt_cm_current')}</th>
+                  <th className="px-4 py-2.5">{t('mkt_col_status')}</th>
                   <th className="px-4 py-2.5">{t('mkt_col_when')}</th>
                 </tr>
               </thead>
               <tbody>
                 {clickMoves.contacts.map((c) => (
-                  <tr key={`${c.contact_id}-${c.button_id}`} className="border-b border-slate-50 last:border-0">
-                    <td className="px-4 py-2.5 text-sm font-medium text-slate-700">{c.name}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-slate-500">{c.email ?? '—'}</td>
-                    <td className="px-4 py-2.5 text-xs text-slate-500">{c.stage_name ?? '—'}</td>
+                  <tr key={c.contact_id} className="border-b border-slate-50 last:border-0">
+                    <td className="px-4 py-2.5">
+                      <div className="text-sm font-medium text-slate-700">{c.name}</div>
+                      <div className="font-mono text-[11px] text-slate-400">{c.email ?? '—'}</div>
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-slate-500">{c.intended_stages.join(', ') || '—'}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-500">{c.current_stage ?? '—'}</td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex flex-wrap gap-1">
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${c.moved_to_intended ? 'bg-success-50 text-success-700' : 'bg-warning-50 text-warning-700'}`}>
+                          {c.moved_to_intended ? t('mkt_cm_moved') : t('mkt_cm_not_moved')}
+                        </span>
+                        {c.likely_bot && (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+                            {t('mkt_cm_bot_tag')}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-2.5 text-xs text-slate-500">
-                      {c.clicked_at ? fmtDateTime(c.clicked_at) : '—'}
+                      {c.last_clicked_at ? fmtDateTime(c.last_clicked_at) : '—'}
                     </td>
                   </tr>
                 ))}

@@ -114,12 +114,25 @@ async def track_click_confirm(token: uuid.UUID, db: DB):
 
     await set_tenant_context(db, str(row.tenant_id))
 
-    if row.action_type == "pipeline_stage" and row.stage_id is not None:
-        from app.modules.pipeline.service import _assign_stage
-        try:
-            await _assign_stage(db, row.tenant_id, row.contact_id, row.stage_id)
-        except Exception:
-            pass
+    if row.action_type == "pipeline_stage":
+        # Resolve the target stage at click time. The token bakes in the stage
+        # mapped when the campaign was sent; if that was empty (stages mapped
+        # later, or the button was re-id'd), fall back to the campaign's current
+        # button_stage_config so a real click still moves the contact.
+        stage_id = row.stage_id
+        if stage_id is None and row.campaign_id is not None:
+            from app.modules.marketing.models import Campaign
+            campaign = await db.get(Campaign, row.campaign_id)
+            cfg = (campaign.button_stage_config or {}) if campaign else {}
+            raw_stage = cfg.get(row.button_id)
+            if raw_stage:
+                stage_id = uuid.UUID(str(raw_stage))
+        if stage_id is not None:
+            from app.modules.pipeline.service import _assign_stage
+            try:
+                await _assign_stage(db, row.tenant_id, row.contact_id, stage_id)
+            except Exception:
+                pass
     elif row.label_id is not None:
         await db.execute(
             pg_insert(contact_label_links)
