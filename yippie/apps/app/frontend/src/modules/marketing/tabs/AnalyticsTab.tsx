@@ -68,6 +68,9 @@ export function AnalyticsTab({ campaign }: { campaign: Campaign }) {
           <Stat label={t('mkt_stat_replied')} value={`${data.reply_rate}%`} sub={`${data.replied} ${t('mkt_stat_contacts')}`} />
           <Stat label={t('mkt_stat_opt_outs')} value={data.unsubscribed} />
           <Stat label={t('mkt_stat_bounced')} value={data.bounce_count ?? 0} />
+          {(data.failed ?? 0) > 0 && (
+            <Stat label={t('mkt_stat_failed')} value={data.failed} />
+          )}
         </div>
 
         {data.variants.length > 0 && (

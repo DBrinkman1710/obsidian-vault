@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -32,6 +32,9 @@ class Campaign(Base):
     dispatch_channel: Mapped[str] = mapped_column(String(20), nullable=False, default="email")
     # 'a' | 'b' | None
     ab_winner: Mapped[str | None] = mapped_column(String(1), nullable=True)
+    # Whether to run an A/B split when two template variants exist. Set at launch
+    # time so the background dispatch (scheduler) honours the user's choice.
+    enable_ab: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     # Saved audience filter (SegmentFilter) — {"filter_by": ..., "filter_id": ...}
     segment_filter: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     # Move every dispatched contact to this stage at send time.
