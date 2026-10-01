@@ -101,15 +101,21 @@ export interface ClickMoveContact {
   contact_id: string
   name: string
   email: string | null
-  button_id: string
-  stage_id: string | null
-  stage_name: string | null
-  clicked_at: string | null
+  buttons_clicked: string[]
+  intended_stages: string[]
+  current_stage: string | null
+  moved_to_intended: boolean
+  placed_by_human: boolean
+  likely_bot: boolean
+  last_clicked_at: string | null
 }
 
 export interface CampaignClickMoves {
   campaign_id: string
-  total: number
+  total_clickers: number
+  moved_to_intended: number
+  not_moved: number
+  likely_bots_multi_button: number
   contacts: ClickMoveContact[]
 }
 

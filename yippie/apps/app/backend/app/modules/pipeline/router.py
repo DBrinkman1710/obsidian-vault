@@ -118,14 +118,24 @@ async def get_flowchart_suggestions(current_user: CurrentUser, db: DB):
 
 @router.get("/campaign_click_moves/{campaign_id}")
 async def campaign_click_moves(campaign_id: uuid.UUID, current_user: AdminUser, db: DB):
-    """Audit: contacts this campaign's tracked buttons moved into a pipeline
-    stage. Before the scanner guard, mail-security link prefetching could fire
-    these moves for contacts who never actually clicked — this surfaces every
-    affected contact so an operator can review and reset them manually (we have
-    no prior-stage history to auto-revert)."""
+    """Diagnostic: for every contact a campaign's tracked pipeline buttons were
+    clicked for, compare the stage the click should have moved them to
+    (intended) against the stage they are actually in on the board (current),
+    so we can see which moves landed and which were lost.
+
+    Also flags likely bots: a contact whose click burned tokens for more than
+    one button is almost certainly an email security scanner (a human picks one
+    button), so their clicks shouldn't be trusted as real intent."""
+    from collections import defaultdict
+
+    from sqlalchemy.orm import aliased
+
     from app.modules.contacts.models import Contact
-    from app.modules.pipeline.models import PipelineStage
+    from app.modules.pipeline.models import ContactPipelineEntry, PipelineStage
     from app.modules.tracking.models import LabelClickToken
+
+    IntendedStage = aliased(PipelineStage)
+    CurrentStage = aliased(PipelineStage)
 
     rows = await db.execute(
         select(
@@ -133,34 +143,69 @@ async def campaign_click_moves(campaign_id: uuid.UUID, current_user: AdminUser, 
             Contact.full_name,
             Contact.email,
             LabelClickToken.button_id,
-            LabelClickToken.stage_id,
-            PipelineStage.name.label("stage_name"),
+            LabelClickToken.stage_id.label("intended_stage_id"),
+            IntendedStage.name.label("intended_stage"),
             LabelClickToken.used_at,
+            ContactPipelineEntry.stage_id.label("current_stage_id"),
+            CurrentStage.name.label("current_stage"),
+            ContactPipelineEntry.moved_by_human,
         )
         .join(Contact, Contact.id == LabelClickToken.contact_id)
-        .outerjoin(PipelineStage, PipelineStage.id == LabelClickToken.stage_id)
+        .outerjoin(IntendedStage, IntendedStage.id == LabelClickToken.stage_id)
+        .outerjoin(
+            ContactPipelineEntry,
+            (ContactPipelineEntry.contact_id == LabelClickToken.contact_id)
+            & (ContactPipelineEntry.tenant_id == LabelClickToken.tenant_id),
+        )
+        .outerjoin(CurrentStage, CurrentStage.id == ContactPipelineEntry.stage_id)
         .where(
             LabelClickToken.tenant_id == current_user.tenant_id,
             LabelClickToken.campaign_id == campaign_id,
             LabelClickToken.used_at.isnot(None),
             LabelClickToken.action_type == "pipeline_stage",
         )
-        .order_by(LabelClickToken.used_at.desc())
+        .order_by(LabelClickToken.contact_id, LabelClickToken.used_at)
     )
-    result = rows.all()
+    by_contact: dict = defaultdict(list)
+    for r in rows.all():
+        by_contact[r.contact_id].append(r)
+
+    contacts = []
+    moved = not_moved = bots = 0
+    for cid, rs in by_contact.items():
+        r0 = rs[0]
+        buttons = sorted({r.button_id for r in rs})
+        intended_ids = {str(r.intended_stage_id) for r in rs if r.intended_stage_id}
+        intended_names = sorted({r.intended_stage for r in rs if r.intended_stage})
+        current_id = str(r0.current_stage_id) if r0.current_stage_id else None
+        landed = bool(current_id and current_id in intended_ids)
+        is_bot = len(buttons) > 1
+        times = [r.used_at for r in rs if r.used_at]
+        if is_bot:
+            bots += 1
+        if landed:
+            moved += 1
+        else:
+            not_moved += 1
+        contacts.append({
+            "contact_id": str(cid),
+            "name": r0.full_name,
+            "email": r0.email,
+            "buttons_clicked": buttons,
+            "intended_stages": intended_names,
+            "current_stage": r0.current_stage,
+            "moved_to_intended": landed,
+            "placed_by_human": bool(r0.moved_by_human),
+            "likely_bot": is_bot,
+            "last_clicked_at": max(times).isoformat() if times else None,
+        })
+
+    contacts.sort(key=lambda c: (c["moved_to_intended"], c["likely_bot"]))
     return {
         "campaign_id": str(campaign_id),
-        "total": len(result),
-        "contacts": [
-            {
-                "contact_id": str(r.contact_id),
-                "name": r.full_name,
-                "email": r.email,
-                "button_id": r.button_id,
-                "stage_id": str(r.stage_id) if r.stage_id else None,
-                "stage_name": r.stage_name,
-                "clicked_at": r.used_at.isoformat() if r.used_at else None,
-            }
-            for r in result
-        ],
+        "total_clickers": len(contacts),
+        "moved_to_intended": moved,
+        "not_moved": not_moved,
+        "likely_bots_multi_button": bots,
+        "contacts": contacts,
     }
