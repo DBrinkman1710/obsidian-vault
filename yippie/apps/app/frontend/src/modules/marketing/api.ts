@@ -97,6 +97,22 @@ export interface ButtonAnalytic {
   result_label: string | null
 }
 
+export interface ClickMoveContact {
+  contact_id: string
+  name: string
+  email: string | null
+  button_id: string
+  stage_id: string | null
+  stage_name: string | null
+  clicked_at: string | null
+}
+
+export interface CampaignClickMoves {
+  campaign_id: string
+  total: number
+  contacts: ClickMoveContact[]
+}
+
 export interface MarketingStats {
   campaigns_sent: number
   open_rate: number
@@ -170,6 +186,8 @@ export const marketingApi = {
     api.post<{ to: string; campaign_id: string }>(`/marketing/campaigns/${id}/test-send`).then((r: any) => r.data),
   getButtonAnalytics: (id: string) =>
     api.get<ButtonAnalytic[]>(`/marketing/campaigns/${id}/button-analytics`).then((r: any) => r.data),
+  getCampaignClickMoves: (id: string) =>
+    api.get<CampaignClickMoves>(`/pipeline/campaign_click_moves/${id}`).then((r: any) => r.data),
   getStats: (days = 30) =>
     api.get<MarketingStats>('/marketing/stats', { params: { days } }).then((r: any) => r.data),
 }

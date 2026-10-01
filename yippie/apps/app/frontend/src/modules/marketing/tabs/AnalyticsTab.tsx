@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { ButtonAnalytic, Campaign, marketingApi, VariantStats } from '../api'
+import { ButtonAnalytic, Campaign, CampaignClickMoves, marketingApi, VariantStats } from '../api'
 import { useT } from '../../../hooks/useT'
+import { fmtDateTime } from '../../../lib/format'
 
 const STATUS_TONE: Record<string, string> = {
   sent: 'bg-slate-100 text-slate-600',
@@ -49,6 +50,12 @@ export function AnalyticsTab({ campaign }: { campaign: Campaign }) {
   const { data: buttonData = [] } = useQuery<ButtonAnalytic[]>({
     queryKey: ['marketing', 'button-analytics', campaign.id],
     queryFn: () => marketingApi.getButtonAnalytics(campaign.id),
+    enabled: campaign.status === 'completed' || campaign.status === 'sending',
+  })
+
+  const { data: clickMoves } = useQuery<CampaignClickMoves>({
+    queryKey: ['marketing', 'click-moves', campaign.id],
+    queryFn: () => marketingApi.getCampaignClickMoves(campaign.id),
     enabled: campaign.status === 'completed' || campaign.status === 'sending',
   })
 
@@ -112,6 +119,39 @@ export function AnalyticsTab({ campaign }: { campaign: Campaign }) {
                     <td className="px-4 py-2.5 text-sm font-bold text-slate-900">{b.click_count}</td>
                     <td className="px-4 py-2.5 text-xs capitalize text-slate-500">{b.action_type.replace('_', ' ')}</td>
                     <td className="px-4 py-2.5 text-xs text-slate-500">{b.result_label ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
+
+        {clickMoves && clickMoves.total > 0 && (
+          <section className="overflow-hidden rounded-2xl border border-warning-200 bg-white">
+            <div className="border-b border-warning-100 bg-warning-50 px-4 py-3">
+              <h3 className="text-sm font-semibold text-slate-900">
+                {t('mkt_click_moves_title')} · {clickMoves.total}
+              </h3>
+              <p className="mt-0.5 text-xs text-warning-700">{t('mkt_click_moves_hint')}</p>
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  <th className="px-4 py-2.5">{t('mkt_col_contact')}</th>
+                  <th className="px-4 py-2.5">{t('mkt_col_email')}</th>
+                  <th className="px-4 py-2.5">{t('mkt_col_stage')}</th>
+                  <th className="px-4 py-2.5">{t('mkt_col_when')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {clickMoves.contacts.map((c) => (
+                  <tr key={`${c.contact_id}-${c.button_id}`} className="border-b border-slate-50 last:border-0">
+                    <td className="px-4 py-2.5 text-sm font-medium text-slate-700">{c.name}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-slate-500">{c.email ?? '—'}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-500">{c.stage_name ?? '—'}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-500">
+                      {c.clicked_at ? fmtDateTime(c.clicked_at) : '—'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
