@@ -59,6 +59,11 @@ async def send_email(
 
     from_addr = from_email or settings.resend_from or "diederik@getyippie.com"
 
+    if not is_valid_email(to):
+        # Catch malformed recipients (e.g. scraped lead addresses) before they
+        # reach Resend, where they would come back as an opaque 422.
+        raise ValueError(f"Invalid recipient email: {to!r}")
+
     payload: dict = {
         "from": from_addr,
         "to": [to],
@@ -86,6 +91,15 @@ async def send_email(
             json=payload,
             timeout=10,
         )
+        if response.status_code >= 400:
+            # Resend returns a JSON body explaining the failure (bad address,
+            # quota/rate limit, unverified domain, …). raise_for_status() drops
+            # it, so log it here before re-raising — otherwise every failure is
+            # an opaque status code in Sentry.
+            logger.error(
+                "Resend %s sending to %s: %s",
+                response.status_code, to, response.text,
+            )
         response.raise_for_status()
         data = response.json()
         return data.get("id")

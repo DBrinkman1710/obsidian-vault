@@ -509,6 +509,42 @@ async def mark_clicked(db: AsyncSession, tracking_token: uuid.UUID) -> bool:
     return True
 
 
+async def mark_campaign_button_clicked(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    campaign_id: Optional[uuid.UUID],
+    contact_id: uuid.UUID,
+) -> bool:
+    """Advance a campaign recipient to 'clicked' when they click a tracked
+    pipeline/label button. Button clicks live in LabelClickToken, which is a
+    separate system from the open-pixel tracking_token that drives the KPI —
+    this bridges the two so the Clicked KPI reflects real button clicks.
+
+    No-op when the token predates per-campaign scoping (campaign_id NULL) since
+    the recipient row can't be mapped unambiguously.
+    """
+    if campaign_id is None:
+        return False
+    from app.modules.contacts.models import Contact
+
+    email = await db.scalar(select(Contact.email).where(Contact.id == contact_id))
+    if not email:
+        return False
+    row = await db.scalar(
+        select(CampaignAnalytics).where(
+            CampaignAnalytics.tenant_id == tenant_id,
+            CampaignAnalytics.campaign_id == campaign_id,
+            CampaignAnalytics.recipient_email == email,
+        )
+    )
+    if row is None:
+        return False
+    _advance(row, "clicked")
+    await db.flush()
+    await _update_engagement_score(db, tenant_id, email, "clicked")
+    return True
+
+
 async def mark_replied(
     db: AsyncSession,
     sender_email: str,
@@ -991,8 +1027,14 @@ async def launch_campaign(
     # Skip opted-out and bounced contacts.
     recipients: list[Contact] = []
     skipped = 0
+    from app.core.mailer import is_valid_email
     for c in contacts:
         if not c.email:
+            continue
+        if not is_valid_email(c.email):
+            # Malformed address (common in scraped lead lists) — Resend would
+            # reject it with a 422, so skip it rather than burning a send attempt.
+            skipped += 1
             continue
         if await is_unsubscribed(db, tenant_id, c.id):
             skipped += 1

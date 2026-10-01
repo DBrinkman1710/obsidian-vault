@@ -51,6 +51,17 @@ async def track_click(token: uuid.UUID, db: DB):
             .on_conflict_do_nothing()
         )
 
+    # Bridge the button click into the campaign recipient KPI — the Clicked
+    # stat reads CampaignAnalytics.status, which the button-token path would
+    # otherwise never advance (see mark_campaign_button_clicked).
+    from app.modules.marketing import service as marketing_service
+    try:
+        await marketing_service.mark_campaign_button_clicked(
+            db, row.tenant_id, row.campaign_id, row.contact_id
+        )
+    except Exception:
+        pass
+
     # [FLOW7] campaign button click — tenant context already set above.
     from app.core.flow_events import emit_flow_event
 
