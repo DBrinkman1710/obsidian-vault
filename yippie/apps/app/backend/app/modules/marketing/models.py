@@ -93,6 +93,9 @@ class CampaignAnalytics(Base):
     # Which template variant this recipient received ('a' | 'b' | None).
     variant: Mapped[str | None] = mapped_column(String(1), nullable=True)
     reply_classification: Mapped[str | None] = mapped_column(Text, nullable=True)
+    open_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    open_user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    open_is_bot: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

@@ -21,7 +21,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -100,7 +100,7 @@ async def track_click_landing(token: uuid.UUID, db: DB):
 
 
 @router.post("/click/{token}", include_in_schema=False)
-async def track_click_confirm(token: uuid.UUID, db: DB):
+async def track_click_confirm(token: uuid.UUID, db: DB, request: Request):
     """Apply the configured action to the contact, burn the token, redirect to
     the confirm page. Only reached when a human submits the confirmation form."""
     row = await db.get(LabelClickToken, token)
@@ -111,6 +111,12 @@ async def track_click_confirm(token: uuid.UUID, db: DB):
         return RedirectResponse(_safe_dest(row), status_code=302)
 
     row.used_at = datetime.now(timezone.utc)
+
+    from app.core.client_meta import get_client_ip, is_bot_user_agent
+    _ua = request.headers.get("user-agent")
+    row.click_ip = get_client_ip(request)
+    row.click_user_agent = (_ua or "")[:512] or None
+    row.click_is_bot = is_bot_user_agent(_ua)
 
     await set_tenant_context(db, str(row.tenant_id))
 
