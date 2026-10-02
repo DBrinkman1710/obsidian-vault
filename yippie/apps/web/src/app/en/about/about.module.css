@@ -97,6 +97,24 @@
   color: var(--ink);
 }
 
+.founderLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-left: 2px;
+  border-radius: 50%;
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+.founderLink:hover {
+  color: var(--brand-700);
+  background: var(--brand-50, rgba(91, 164, 245, 0.12));
+  transform: scale(1.06);
+}
+
 /* ── Story section ───────────────────────────────────────────────── */
 .storyWrap {
   max-width: 860px;
