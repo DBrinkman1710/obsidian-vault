@@ -130,7 +130,12 @@ async def track_click_confirm(token: uuid.UUID, db: DB):
         if stage_id is not None:
             from app.modules.pipeline.service import _assign_stage
             try:
-                await _assign_stage(db, row.tenant_id, row.contact_id, stage_id)
+                # The recipient clicked their own button (and confirmed, past the
+                # scanner guard) — treat it as their explicit choice so it moves
+                # them even if they were hand-placed in another stage.
+                await _assign_stage(
+                    db, row.tenant_id, row.contact_id, stage_id, recipient_action=True
+                )
             except Exception:
                 pass
     elif row.label_id is not None:
