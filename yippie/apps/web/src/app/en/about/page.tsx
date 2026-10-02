@@ -5,7 +5,7 @@ import Reveal from "@/app/components/Reveal";
 import styles from "@/app/components/content.module.css";
 import aboutStyles from "./about.module.css";
 import FounderPhoto from "./FounderPhoto";
-import { BoltIcon, LayersIcon, UsersIcon, InboxIcon, CalendarIcon, TeamIcon, ArrowRightIcon } from "@/app/components/icons";
+import { BoltIcon, LayersIcon, UsersIcon, InboxIcon, CalendarIcon, TeamIcon, ArrowRightIcon, LinkedInIcon } from "@/app/components/icons";
 
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
@@ -85,6 +85,15 @@ export default function AboutPage() {
             <span className={aboutStyles.founderName}>
               <strong>Diederik Brinkman</strong> · Founder
             </span>
+            <a
+              href="https://www.linkedin.com/in/diederik-brinkman-20a427265/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={aboutStyles.founderLink}
+              aria-label="Diederik Brinkman on LinkedIn"
+            >
+              <LinkedInIcon size={18} />
+            </a>
           </div>
         </Reveal>
       </section>

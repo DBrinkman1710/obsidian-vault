@@ -201,6 +201,7 @@ async def _assign_stage(
     stage_id: uuid.UUID,
     actor_id: Optional[uuid.UUID] = None,
     source: str = "app",
+    recipient_action: bool = False,
 ) -> str:
     """Write the stage assignment without committing. Caller must commit.
     Returns ``"applied"`` when a move landed, ``"noop"`` when nothing needed to
@@ -211,24 +212,33 @@ async def _assign_stage(
     stages flows through here (kanban drag, booking auto-move, tracking link
     clicks), so the activity feed shows the full transition history inline.
 
-    Automation (a flow action, a booking auto-move, a tracking link) never
-    overrides a human's manual placement: if the contact's current entry was
-    ``moved_by_human`` and this move isn't itself a human action, the move is
-    refused (returns ``"blocked"``) so the operator's decision stands. Callers
-    that need to surface the skip (the flow action) go through
-    ``move_contact_to_stage``, which turns ``"blocked"`` into ``StageMoveSkipped``.
+    Automation (a flow action, a booking auto-move) never overrides a human's
+    manual placement: if the contact's current entry was ``moved_by_human`` and
+    this move isn't authoritative, the move is refused (returns ``"blocked"``) so
+    the operator's decision stands. Callers that need to surface the skip (the
+    flow action) go through ``move_contact_to_stage``, which turns ``"blocked"``
+    into ``StageMoveSkipped``.
+
+    ``recipient_action=True`` marks the move as the contact's *own* explicit
+    choice (they clicked a tracked campaign button themselves). That is as
+    authoritative as an operator drag — it overrides a prior manual placement and
+    sticks. The scanner guard on the click endpoint ensures only a genuine human
+    confirmation reaches here, so bots can't trigger this.
     """
     by_human = actor_id is not None
+    # A recipient choosing a stage by clicking their own campaign button is as
+    # authoritative as an operator placement — honour it over a prior hand-move.
+    authoritative = by_human or recipient_action
     existing = await db.scalar(
         select(ContactPipelineEntry).where(
             ContactPipelineEntry.contact_id == contact_id,
             ContactPipelineEntry.tenant_id == tenant_id,
         )
     )
-    # Restore the human-placement guard: an automated move (no actor) that would
-    # relocate a contact a human parked in a stage is refused entirely.
+    # Human-placement guard: a non-authoritative move (plain automation, no actor)
+    # that would relocate a contact a human parked in a stage is refused entirely.
     if (
-        not by_human
+        not authoritative
         and existing is not None
         and existing.moved_by_human
         and existing.stage_id != stage_id
@@ -239,16 +249,16 @@ async def _assign_stage(
     if existing is None:
         db.add(ContactPipelineEntry(
             contact_id=contact_id, stage_id=stage_id, tenant_id=tenant_id,
-            moved_by_human=by_human,
+            moved_by_human=authoritative,
         ))
         changed = True
     elif existing.stage_id != stage_id:
         existing.stage_id = stage_id
         existing.entered_at = datetime.now(timezone.utc)
-        existing.moved_by_human = by_human
+        existing.moved_by_human = authoritative
         changed = True
-    elif by_human and not existing.moved_by_human:
-        # Same stage but human is explicitly confirming it — promote the flag.
+    elif authoritative and not existing.moved_by_human:
+        # Same stage but an authoritative actor is confirming it — promote the flag.
         existing.moved_by_human = True
 
     if not changed:
