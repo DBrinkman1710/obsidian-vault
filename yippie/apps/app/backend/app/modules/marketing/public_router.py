@@ -12,7 +12,7 @@ import html
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,7 +34,7 @@ _PIXEL = (
 
 
 @router.get("/open/{token}", include_in_schema=False)
-async def track_open(token: uuid.UUID, db: DB):
+async def track_open(token: uuid.UUID, db: DB, request: Request):
     """Record an open event and return a 1x1 transparent GIF.
 
     Always returns the pixel — even on unknown/expired tokens — so an email
@@ -46,8 +46,16 @@ async def track_open(token: uuid.UUID, db: DB):
     row = result.scalar_one_or_none()
     if row is not None:
         await set_tenant_context(db, str(row.tenant_id))
+        from app.core.client_meta import get_client_ip, is_bot_user_agent
+        _ua = request.headers.get("user-agent")
+        _is_bot = is_bot_user_agent(_ua)
         try:
-            await service.mark_opened(db, token)
+            if row.open_ip is None:
+                row.open_ip = get_client_ip(request)
+                row.open_user_agent = (_ua or "")[:512] or None
+                row.open_is_bot = _is_bot
+            if not _is_bot:
+                await service.mark_opened(db, token)
             await db.commit()
         except Exception:
             await db.rollback()
