@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import Script from "next/script";
 import ConsentDefaults from "./components/ConsentDefaults";
 import CookieBanner from "./components/CookieBanner";
@@ -11,23 +11,26 @@ const YIPPIE_TRACKING_TOKEN = process.env.NEXT_PUBLIC_YIPPIE_TRACKING_TOKEN;
 
 const SITE_URL = process.env.NEXT_PUBLIC_WEB_URL ?? "https://getyippie.com";
 
-const inter = Inter({
-  subsets: ["latin"],
+// Self-hosted so the build never depends on reaching Google Fonts at build time.
+// Each file is the latin variable woff2 pulled from Google Fonts (see src/app/fonts).
+const inter = localFont({
+  src: "./fonts/inter-latin.woff2",
   display: "swap",
+  weight: "100 900",
   variable: "--font-inter",
 });
 
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
+const spaceGrotesk = localFont({
+  src: "./fonts/space-grotesk-latin.woff2",
   display: "swap",
-  weight: ["500", "600", "700"],
+  weight: "300 700",
   variable: "--font-space",
 });
 
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
+const jetbrainsMono = localFont({
+  src: "./fonts/jetbrains-mono-latin.woff2",
   display: "swap",
-  weight: ["500", "600"],
+  weight: "100 800",
   variable: "--font-jetbrains",
 });
 
